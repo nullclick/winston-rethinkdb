@@ -15,19 +15,6 @@ var async   = require('async')
   , winston = require('winston')
 
 
-// @todo yank this
-function ___(k) { 
-    if ('string' === typeof k) {
-        console.log(k)
-    } else if ('function' === typeof k) {
-        console.log(k())
-    } else {
-        console.log(util.inspect(k, { colors: true, depth: 2 }))
-    }
-}
-
-
-
 /**
  * Constructor for the RethinkDB transport object
  *
@@ -71,7 +58,6 @@ var RethinkDB = exports.RethinkDB = function (options) {
         function removeQueue(error) {
             if (error) { throw error }
             delete self._queue
-            ___("Queue drained")
         }
 
         async.eachSeries(self._queue, applyMethod, removeQueue)
@@ -96,14 +82,10 @@ var RethinkDB = exports.RethinkDB = function (options) {
     function dbaseCreate(callback) {
         r.dbCreate(db).run()
             .then(function (results) {
-                ___("Created database '" + db + "'")
-                ___(results)
                 callback(null)
             })
             .catch(r.Error.ReqlRuntimeError, function (error) {
-                ___({ error: error.name, message: error.message })
                 // @todo figure out best way of checking that this is the error we expect
-                ___("Skipping database creation")
                 callback(null)
             })
             .error(callback)
@@ -113,14 +95,10 @@ var RethinkDB = exports.RethinkDB = function (options) {
     function tableCreate(callback) {
         r.db(db).tableCreate(table).run()
             .then(function (results) {
-                ___("Created table '" + table + "'")
-                ___(results)
                 callback(null)
             })
             .catch(r.Error.ReqlRuntimeError, function (error) {
-                ___({ error: error.name, message: error.message })
                 // @todo figure out best way of checking that this is the error we expect
-                ___("Skipping table creation")
                 callback(null)
             })
             .error(callback)
@@ -130,18 +108,14 @@ var RethinkDB = exports.RethinkDB = function (options) {
     function indexTimestamp(callback) {
         r.db(db).table(table).indexCreate('timestamp').run()
             .then(function (results) {
-                ___(results)
                 r.db(db).table(table).indexWait().run()
                     .then(function (results) {
-                        ___(results)
                         callback(null)
                     })
                     .error(callback)
             })
             .catch(r.Error.ReqlRuntimeError, function (error) {
-                ___({ error: error.name, message: error.message })
                 // @todo figure out best way of checking that this is the error we expect
-                ___("Skipping index creation")
                 callback(null)
             })
             .error(callback)
@@ -159,7 +133,6 @@ var RethinkDB = exports.RethinkDB = function (options) {
         if (error) { throw error }
         self.ready = true
         drainQueue()
-        ___("Database Initialization Complete")
     })
 }
 
@@ -205,14 +178,12 @@ RethinkDB.prototype.log = function (level, msg, meta, callback) {
    
     this.r.db(this.db).table(this.table).insert(record).run()
         .then(function (results) {
-            ___({ success: results })
             self.emit('logged')
             if (callback) {
                 callback(null, true)
             }
         })
         .error(function (error) {
-            ___(error)
             self.emit('error', error)
             if (callback) {
                 callback(error, null)
@@ -237,8 +208,6 @@ RethinkDB.prototype.query = function (options, callback) {
 
     q_opts = this.normalizeQuery(options)
 
-    ___(q_opts)
-
     if (!q_opts.fields) {
         q_opts.fields = ['id', 'level', 'message', 'meta', 'timestamp', 'hostname', 'label']
     }
@@ -251,13 +220,11 @@ RethinkDB.prototype.query = function (options, callback) {
         .pluck(q_opts.fields)
         .run()
         .then(function (results) {
-            ___(results)
             if (callback) {
                 callback(null, results)
             }
         })
         .error(function (error) {
-            ___(error)
             self.emit('error', error)
             if (callback) {
                 callback(error, null)
@@ -268,14 +235,17 @@ RethinkDB.prototype.query = function (options, callback) {
 
 RethinkDB.prototype.stream = function (options) {
     var self    = this
-      , stream  = new Stream
+      , stream
+
+    options = options || {}
 
     if (!this.ready) {
+        options.stream = new Stream
         this._queue.push({ method: 'stream', args: arguments })
         return stream
     }
 
-    options = options || {}
+    stream = options.stream || new Stream
 
     stream.destroy = function () {
         if (this.destroyed) {
@@ -296,22 +266,19 @@ RethinkDB.prototype.stream = function (options) {
     }
 
     self._changes.on('data', function (data) {
-        ___("stream data")
-        ___(data)
+        stream.emit('log', data.new_val)
     })
     
     self._changes.on('error', function (error) {
-        ___("stream error")
-        ___(error)
-        _changes.emit('error', error)
+        stream.emit('error', error)
     })
 
     self._changes.on('end', function () {
-        ___("stream end")
+        stream.emit('end')
     })
 
     self._changes.on('close', function () {
-        ___("stream close")
+        stream.emit('close')
     })
 
     return stream
@@ -321,32 +288,24 @@ RethinkDB.prototype.stream = function (options) {
 RethinkDB.prototype.close = function () {
     var self = this
 
-    ___("Closing transport")
     this.ready = false
 
     if (this._changes) {
-        ___("Closing stream")
-        ___(this._changes)
         this._changes._cursor.close()
             .then(function (result) {
-                ___("Stream closed")
-                ___(result)
                 self.r.getPoolMaster().drain()
             })
 
             // https://github.com/rethinkdb/rethinkdb/issues/4819
             // @todo fix this when parent issue has been resolved
             .catch(r.Error.ReqlRuntimeError, function (error) {
-                ___("stream close ReqlRuntimeError")
-                ___(error.message)
                 self.r.getPoolMaster().drain()
             })
 
             .error(function (error) {
-                ___("stream close error")
-                ___(error)
                 self.r.getPoolMaster().drain()
             })
+
     } else {
         this.r.getPoolMaster().drain()
     }
