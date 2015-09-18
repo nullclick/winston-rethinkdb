@@ -19,8 +19,16 @@ var async   = require('async')
  * Constructor for the RethinkDB transport object
  *
  * @constructor
- * @param {Object} options
- * @param {string=rethinkdb} options.name Transport instance identifier.
+ * @param {Object}           options
+ * @param {string=rethinkdb} options.name       Transport instance identifier
+ * @param {string}           options.label      optional label to add to log records
+ * @param {boolean=false}    options.silent     Suppress actual saving of records
+ * @param {boolean=false}    options.storeHost  add hostname to log records
+ * @param {string=test}      options.db name    of database to save records to
+ * @param {string=log}       options.table      name of table to save records to
+ * @param {object|function}  options.options 
+ *      if an object, it is passed to rethinkdbdash for connection
+ *      if a function, it is called and the expected return is a rethindbdash instance
  */
 var RethinkDB = exports.RethinkDB = function (options) {
 
@@ -30,11 +38,10 @@ var RethinkDB = exports.RethinkDB = function (options) {
       , table = null
 
     winston.Transport.call(this, options)
-    options = (options || {})
+    options = options || {}
 
     // winston transport logger options
     this.name      = options.name  || 'rethinkdb'
-    this.level     = options.level || 'info'
     this.label     = options.label
     this.silent    = options.silent
     this.storeHost = options.storeHost
@@ -43,7 +50,6 @@ var RethinkDB = exports.RethinkDB = function (options) {
     // Save locals of these for quick access
     db    = this.db    = options.db    || 'test'
     table = this.table = options.table || 'log'
-
 
     this.ready    = false
     this._queue   = []
@@ -85,7 +91,8 @@ var RethinkDB = exports.RethinkDB = function (options) {
                 callback(null)
             })
             .catch(r.Error.ReqlRuntimeError, function (error) {
-                // @todo figure out best way of checking that this is the error we expect
+                // @todo figure out best way of checking that this 
+                //       is the error we expect when db exists
                 callback(null)
             })
             .error(callback)
@@ -98,7 +105,8 @@ var RethinkDB = exports.RethinkDB = function (options) {
                 callback(null)
             })
             .catch(r.Error.ReqlRuntimeError, function (error) {
-                // @todo figure out best way of checking that this is the error we expect
+                // @todo figure out best way of checking that this 
+                //       is the error we expect when table exists
                 callback(null)
             })
             .error(callback)
@@ -115,7 +123,9 @@ var RethinkDB = exports.RethinkDB = function (options) {
                     .error(callback)
             })
             .catch(r.Error.ReqlRuntimeError, function (error) {
-                // @todo figure out best way of checking that this is the error we expect
+                // @todo figure out best way of checking that this 
+                //       is the error we expect when the index exists
+                //       particularly since this could fail in other ways
                 callback(null)
             })
             .error(callback)
@@ -145,6 +155,19 @@ util.inherits(RethinkDB, winston.Transport)
 winston.transports.RethinkDB = RethinkDB
 
 
+
+/**
+ * Core logging method exposed to winston.  cycle.decycle is used on
+ * the meta data object to ensure that circular references are removed
+ *
+ * @see npm info cycle
+ * 
+ * @param  {string}     level       level to log the message as
+ * @param  {string}     msg         message to log
+ * @param  {object={}}  meta        optional metadata object
+ * @param  {Function}   callback    optional (error, success) -> 
+ * @return {null}
+ */
 RethinkDB.prototype.log = function (level, msg, meta, callback) {
     var self   = this
       , record = null
@@ -193,6 +216,13 @@ RethinkDB.prototype.log = function (level, msg, meta, callback) {
 
 
 
+/**
+ * Query method for searching through log records in database
+ * 
+ * @param  {object={}}  options     query options in the typical winston loggly format
+ * @param  {Function}   callback    (error, results) ->
+ * @return {null}
+ */
 RethinkDB.prototype.query = function (options, callback) {
     var q_opts = null
 
@@ -201,6 +231,7 @@ RethinkDB.prototype.query = function (options, callback) {
         return null
     }
 
+    // options object is entirely optional, shift callback over
     if ('function' === typeof options) {
         callback = options
         options  = {}
@@ -208,6 +239,7 @@ RethinkDB.prototype.query = function (options, callback) {
 
     q_opts = this.normalizeQuery(options)
 
+    // @todo this could be done by simply not chaining .pluck() unless we need it
     if (!q_opts.fields) {
         q_opts.fields = ['id', 'level', 'message', 'meta', 'timestamp', 'hostname', 'label']
     }
@@ -220,33 +252,41 @@ RethinkDB.prototype.query = function (options, callback) {
         .pluck(q_opts.fields)
         .run()
         .then(function (results) {
-            if (callback) {
-                callback(null, results)
-            }
+            callback(null, results)
         })
         .error(function (error) {
             self.emit('error', error)
-            if (callback) {
-                callback(error, null)
-            }
+            callback(error, null)
         })
 }
 
 
+
+/**
+ * Returns an EventEmitter log stream for this transport
+ *
+ * @todo  why use Stream instead of EventEmitter directly?
+ * 
+ * @param  {object={}}  options  
+ * @param  {Stream}     options.stream  optional pre-existing stream to use   
+ * @return {Stream}
+ */
 RethinkDB.prototype.stream = function (options) {
     var self    = this
       , stream
 
     options = options || {}
+    stream  = options.stream || new Stream
 
+    // if we are not ready to stream records, save the stream to
+    // hook-up when the queue is processed so we can return it now
     if (!this.ready) {
-        options.stream = new Stream
+        options.stream = stream
         this._queue.push({ method: 'stream', args: arguments })
         return stream
     }
 
-    stream = options.stream || new Stream
-
+    // provided for winston (or outside) to close the stream cleanly
     stream.destroy = function () {
         if (this.destroyed) {
             return null
@@ -258,6 +298,7 @@ RethinkDB.prototype.stream = function (options) {
         self._changes = null
     }
 
+    // don't create another cursor changefeed if more streams are opened
     if (!self._changes) {
         self._changes = this.r.db(this.db).table(this.table)
             .changes()
@@ -265,6 +306,7 @@ RethinkDB.prototype.stream = function (options) {
             .toStream()
     }
 
+    // connect changefeed events to emit on the stream
     self._changes.on('data', function (data) {
         stream.emit('log', data.new_val)
     })
@@ -285,6 +327,12 @@ RethinkDB.prototype.stream = function (options) {
 }
 
 
+
+/**
+ * Close method for winston to shutdown transport cleanly.
+ * 
+ * @return {null}
+ */
 RethinkDB.prototype.close = function () {
     var self = this
 
