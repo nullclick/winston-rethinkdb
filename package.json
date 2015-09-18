@@ -1,10 +1,10 @@
 {
   "name": "winston-rethinkdb",
-  "version": "0.0.1",
+  "version": "0.0.0",
   "description": "A RethinkDB transport for winston",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "./node_modules/.bin/mocha --compilers coffee:coffee-script/register"
   },
   "repository": {
     "type": "git",
@@ -26,5 +26,9 @@
     "cycle": "^1.0.3",
     "rethinkdbdash": "^2.1.8",
     "winston": "^1.0.1"
+  },
+  "devDependencies": {
+    "coffee-script": "^1.10.0",
+    "mocha": "^2.3.2"
   }
 }
