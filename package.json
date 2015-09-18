@@ -1,0 +1,30 @@
+{
+  "name": "winston-rethinkdb",
+  "version": "0.0.1",
+  "description": "A RethinkDB transport for winston",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/nullclick/winston-rethinkdb.git"
+  },
+  "keywords": [
+    "winston",
+    "logging",
+    "rethinkdb"
+  ],
+  "author": "Andy Brown <andyb@formulatoast.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/nullclick/winston-rethinkdb/issues"
+  },
+  "homepage": "https://github.com/nullclick/winston-rethinkdb#readme",
+  "dependencies": {
+    "async": "^1.4.2",
+    "cycle": "^1.0.3",
+    "rethinkdbdash": "^2.1.8",
+    "winston": "^1.0.1"
+  }
+}
