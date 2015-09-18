@@ -21,6 +21,7 @@ var async   = require('async')
  * @constructor
  * @param {Object}           options
  * @param {string=rethinkdb} options.name       Transport instance identifier
+ * @param {string=info}      options.level      level of messages that should be recorded
  * @param {string}           options.label      optional label to add to log records
  * @param {boolean=false}    options.silent     Suppress actual saving of records
  * @param {boolean=false}    options.storeHost  add hostname to log records
@@ -42,6 +43,7 @@ var RethinkDB = exports.RethinkDB = function (options) {
 
     // winston transport logger options
     this.name      = options.name  || 'rethinkdb'
+    this.level     = options.level || 'info'
     this.label     = options.label
     this.silent    = options.silent
     this.storeHost = options.storeHost
