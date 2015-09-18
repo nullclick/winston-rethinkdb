@@ -66,6 +66,7 @@ var RethinkDB = exports.RethinkDB = function (options) {
         function removeQueue(error) {
             if (error) { throw error }
             delete self._queue
+            self.emit('ready')
         }
 
         async.eachSeries(self._queue, applyMethod, removeQueue)
@@ -87,6 +88,7 @@ var RethinkDB = exports.RethinkDB = function (options) {
     }
 
 
+    // @todo check for invalid database name and throw
     function dbaseCreate(callback) {
         r.dbCreate(db).run()
             .then(function (results) {

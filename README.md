@@ -4,6 +4,10 @@ A RethinkDB transport for [winston][0].
 
 Uses [rethinkdbdash][1] for it's client driver, and supports querying and streaming.
 
+```
+  npm install winston-rethinkdb
+```
+
 
 ## Usage
 ``` js
@@ -64,25 +68,6 @@ Could also be written as follows, if you intend to use `r` for other modules (ie
 
   winston.add(winston.transports.RethinkDB, options)
 ```
-
-## unit test plan
-
-I have not had a chance to write automated tests, but have identified the following test cases that I intend to get tests written for soon.
-
-* constructor options
-* initialization when db and table exist
-* initialization when db exists, table does not
-* initialization when neither db nor table exist
-* queue log attempts until transport is ready
-* circular references in meta data when logging
-* too deeply nested meta data
-* connection pool connectivity issues
-* query loggly options
-* query attempts before transport is ready
-* stream attempts before transport is ready
-* stream options
-* stream disconnection
-* attempting log, query or stream after closed
 
 
 [0]: https://github.com/flatiron/winston
