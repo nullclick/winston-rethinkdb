@@ -98,6 +98,7 @@ var RethinkDB = exports.RethinkDB = function (options) {
                 // @todo figure out best way of checking that this 
                 //       is the error we expect when db exists
                 callback(null)
+                return null
             })
             .error(callback)
     }
@@ -112,6 +113,7 @@ var RethinkDB = exports.RethinkDB = function (options) {
                 // @todo figure out best way of checking that this 
                 //       is the error we expect when table exists
                 callback(null)
+                return null
             })
             .error(callback)
     }
@@ -123,6 +125,7 @@ var RethinkDB = exports.RethinkDB = function (options) {
                 r.db(db).table(table).indexWait().run()
                     .then(function (results) {
                         callback(null)
+                        return null
                     })
                     .error(callback)
             })
@@ -131,6 +134,7 @@ var RethinkDB = exports.RethinkDB = function (options) {
                 //       is the error we expect when the index exists
                 //       particularly since this could fail in other ways
                 callback(null)
+                return null
             })
             .error(callback)
 
@@ -209,12 +213,14 @@ RethinkDB.prototype.log = function (level, msg, meta, callback) {
             if (callback) {
                 callback(null, true)
             }
+            return null
         })
         .error(function (error) {
             self.emit('error', error)
             if (callback) {
                 callback(error, null)
             }
+            return null
         })
 }
 
@@ -257,10 +263,12 @@ RethinkDB.prototype.query = function (options, callback) {
         .run()
         .then(function (results) {
             callback(null, results)
+            return null
         })
         .error(function (error) {
             self.emit('error', error)
             callback(error, null)
+            return null
         })
 }
 
@@ -346,19 +354,23 @@ RethinkDB.prototype.close = function () {
         this._changes._cursor.close()
             .then(function (result) {
                 self.r.getPoolMaster().drain()
+                return null
             })
 
             // https://github.com/rethinkdb/rethinkdb/issues/4819
             // @todo fix this when parent issue has been resolved
             .catch(r.Error.ReqlRuntimeError, function (error) {
                 self.r.getPoolMaster().drain()
+                return null
             })
 
             .error(function (error) {
                 self.r.getPoolMaster().drain()
+                return null
             })
 
     } else {
         this.r.getPoolMaster().drain()
+        return null
     }
 }
